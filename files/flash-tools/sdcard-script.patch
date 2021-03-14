@@ -1,0 +1,68 @@
+diff --git a/files/flash-tools/create_sdcard_from_flashlayout.sh b/files/flash-tools/create_sdcard_from_flashlayout.sh
+index 0a21905..c1b0fca 100755
+--- a/files/flash-tools/create_sdcard_from_flashlayout.sh
++++ b/files/flash-tools/create_sdcard_from_flashlayout.sh
+@@ -30,15 +30,6 @@ declare -A FLASHLAYOUT_data
+ 
+ SDCARD_TOKEN=mmc0
+ 
+-# Minimal size required is 8GB
+-DEFAULT_RAW_SIZE=8192
+-
+-# size of 3GB
+-DEFAULT_ROOTFS_PARTITION_SIZE=3145728
+-# size of 1024MB
+-#DEFAULT_ROOTFS_PARTITION_SIZE=1232896
+-
+-
+ # 32 MB of Padding on B
+ DEFAULT_PADDING_SIZE=33554432
+ 
+@@ -296,15 +287,15 @@ function generate_gpt_partition_table_from_flash_layout() {
+                        next_offset=${FLASHLAYOUT_data[$(($i+1)),$COL_OFFSET]}
+                        next_offset=$(echo $next_offset | sed -e "s/0x//")
+                        next_offset_b=$(echo $((16#$next_offset)))
+-                       if [ "$partName" == "rootfs" ];
+-                       then
+-                               #force the size of rootfs parition to 768MB
+-                               new_next_partition_offset_b=$(($offset_b + 1024*$DEFAULT_ROOTFS_PARTITION_SIZE))
+-                               next_offset_b=$new_next_partition_offset_b
++                       #if [ "$partName" == "rootfs" ];
++                       #then
++                       #       #force the size of rootfs parition to 768MB
++                       #       new_next_partition_offset_b=$(($offset_b + 1024*$DEFAULT_ROOTFS_PARTITION_SIZE))
++                       #       next_offset_b=$new_next_partition_offset_b
+ 
+-                               move_partition_offset $(($i+1)) $new_next_partition_offset_b
+-                               index_of_rootfs=$i
+-                       fi
++                       #move_partition_offset $(($i+1)) $new_next_partition_offset_b
++                       #       index_of_rootfs=$i
++                       #fi
+ 
+                        if [ $i -gt $index_of_rootfs ];
+                        then
+@@ -755,7 +746,7 @@ function print_warning() {
+ function usage() {
+        echo ""
+        echo "Help:"
+-       echo "   $0 <FlashLayout file>"
++       echo "   $0 <FlashLayout file> <sd card size>"
+        echo ""
+        exit 1
+ }
+@@ -763,12 +754,13 @@ function usage() {
+ #        Main
+ # ------------------
+ # check opt args
+-if [ $# -ne 1 ];
++if [ $# -ne 2 ];
+ then
+        echo "[ERROR]: bad number of parameters"
+        echo ""
+        usage
+ else
++       DEFAULT_RAW_SIZE=$2
+        FLASHLAYOUT_filename=$1
+        FLASHLAYOUT_filename_path=$(dirname $FLASHLAYOUT_filename)
+        FLASHLAYOUT_filename_name=$(basename $FLASHLAYOUT_filename)

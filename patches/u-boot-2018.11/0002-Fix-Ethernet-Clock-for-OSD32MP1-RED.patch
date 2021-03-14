@@ -1,0 +1,32 @@
+From eab9f046a43599fd46f41ac52eb7d20be9f9e7ab Mon Sep 17 00:00:00 2001
+From: "neeraj.dantu" <neeraj.dantu@octavosystems.com>
+Date: Sun, 31 Jan 2021 21:06:08 -0600
+Subject: [PATCH 2/2] Fix Ethernet Clock for OSD32MP1-RED
+
+Signed-off-by: neeraj.dantu <neeraj.dantu@octavosystems.com>
+---
+ arch/arm/dts/stm32mp157c.dtsi | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/dts/stm32mp157c.dtsi b/arch/arm/dts/stm32mp157c.dtsi
+index c94a1f254e..c0f94bb19c 100644
+--- a/arch/arm/dts/stm32mp157c.dtsi
++++ b/arch/arm/dts/stm32mp157c.dtsi
+@@ -1768,10 +1768,14 @@
+ 			clock-names = "stmmaceth",
+ 				      "mac-clk-tx",
+ 				      "mac-clk-rx",
++				      "eth-ck",    //custom
++				      "syscfg-clk", //custom
+ 				      "ethstp";
+ 			clocks = <&rcc ETHMAC>,
+ 				 <&rcc ETHTX>,
+ 				 <&rcc ETHRX>,
++				 <&rcc ETHCK_K>, //custom
++				 <&rcc SYSCFG>,  //custom
+ 				 <&rcc ETHSTP>;
+ 			st,syscon = <&syscfg 0x4>;
+ 			snps,mixed-burst;
+-- 
+2.17.1
+
