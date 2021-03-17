@@ -148,7 +148,6 @@ rootfs: kernel gcnano m4_demo
 	sed -i -e "s:@userfs_mount_point@:${STM32MP_USERFS_MOUNTPOINT_IMAGE}:" $(ROOTFS_DIR)/etc/init.d/st-m4firmware-load-default.sh
 	sed -i -e "s:@userfs_mount_point@:${STM32MP_USERFS_MOUNTPOINT_IMAGE}:" $(ROOTFS_DIR)/sbin/st-m4firmware-load-default.sh
 	cp $(M4PROJECTS_DIR)/st-m4firmware-load.service $(ROOTFS_DIR)/lib/systemd/system/
-	
 
  	# Install demo files
 	cp $(BUILDTOOLS_DIR)/files/demo_camera.sh $(ROOTFS_DIR)/home/debian
@@ -156,9 +155,20 @@ rootfs: kernel gcnano m4_demo
 	cp $(BUILDTOOLS_DIR)/files/OSD32MP1_RED_intro_360p.mp4 $(ROOTFS_DIR)/home/debian
 	cp -R $(M4PROJECTS_DIR)/deploy/STM32MP157C-DK2 $(ROOTFS_DIR)/usr/local/bin/
 
-	# Create image
-	tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .
-	virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-$(BOARD_NAME).ext4
+	# Install fstab for emmc
+	cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_emmc $(ROOTFS_DIR)/etc/fstab
+
+	# Create eMMC image
+	tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .
+	virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).ext4
+
+	# Install fstab for sd card
+	cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_sdcard $(ROOTFS_DIR)/etc/fstab
+
+	# Create SD card image
+	tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .
+	virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).ext4
+
 
 vendorfs: setup gcnano
 	dd if=/dev/zero of=$(DEPLOY_DIR)/octavo-vendorfs-debian-lxqt-$(BOARD_NAME).ext4 bs=1M count=16
@@ -188,20 +198,20 @@ all: ssbl fsbl bootfs rootfs vendorfs image
 fsbl_clean:
 	$(MAKE) $(FLAGS) -C $(FSBL_DIR) clean
 	$(MAKE) $(FLAGS) -C $(FSBL_DIR) distclean
-	git --git-dir $(FSBL_DIR)/.git reset --hard HEAD
-	git --git-dir $(FSBL_DIR)/.git clean -f -d
+	git --git-dir=$(FSBL_DIR)/.git --work-tree=$(FSBL_DIR) reset --hard HEAD
+	git --git-dir=$(FSBL_DIR)/.git --work-tree=$(FSBL_DIR) clean -f -d
 
 ssbl_clean:
 	$(MAKE) $(FLAGS) -C $(SSBL_DIR) clean
 	$(MAKE) $(FLAGS) -C $(SSBL_DIR) distclean
-	git --git-dir $(SSBL_DIR)/.git reset --hard HEAD
-	git --git-dir $(SSBL_DIR)/.git clean -f -d
+	git --git-dir=$(SSBL_DIR)/.git --work-tree=$(SSBL_DIR) reset --hard HEAD
+	git --git-dir=$(SSBL_DIR)/.git --work-tree=$(SSBL_DIR) clean -f -d
 
 kernel_clean:
 	$(MAKE) $(FLAGS) -C $(KERNEL_DIR) clean
 	$(MAKE) $(FLAGS) -C $(KERNEL_DIR) distclean
-	git --git-dir $(KERNEL_DIR)/.git reset --hard HEAD
-	git --git-dir $(KERNEL_DIR)/.git clean -f -d
+	git --git-dir=$(KERNEL_DIR)/.git --work-tree=$(KERNEL_DIR) reset --hard HEAD
+	git --git-dir=$(KERNEL_DIR)/.git --work-tree=$(KERNEL_DIR) clean -f -d
 
 clean: ssbl_clean fsbl_clean kernel_clean
 	$(MAKE) $(FLAGS) -C $(MULTISTRAP_DIR) clean

@@ -26,7 +26,7 @@ FSBL_NAME=tf-a-${BOARD_NAME}.stm32
 SSBL_NAME=u-boot-${BOARD_NAME}-${MODE}.stm32
 BOOTFS_NAME=octavo-bootfs-debian-lxqt-${BOARD_NAME}.ext4
 VENDORFS_NAME=octavo-vendorfs-debian-lxqt-${BOARD_NAME}.ext4
-ROOTFS_NAME=octavo-rootfs-debian-lxqt-${BOARD_NAME}.ext4
+
 
 VENDORFS_SIZE=$(du -s -b ${SCRIPTPATH}/${VENDORFS_NAME}  | awk '{print $1;}')
 ROOTFS_SIZE=$(du -s -b ${SCRIPTPATH}/${ROOTFS_NAME}  | awk '{print $1;}')
@@ -40,6 +40,7 @@ then
 	BOOTFS_OFF=0x00284400
 	VENDORFS_OFF=0x04284400
 	ROOTFS_OFF=`printf "0x%08x" $((${VENDORFS_SIZE} + ${VENDORFS_OFF}))`
+	ROOTFS_NAME=octavo-rootfs-debian-lxqt-sdcard-${BOARD_NAME}.ext4
 	TSV_FILE="${SCRIPTPATH}/FlashLayout_sdcard_${BOARD_NAME}-${MODE}.tsv"
 elif [ "${MMC_DEVICE}" = "1" ]
 then
@@ -49,6 +50,7 @@ then
 	BOOTFS_OFF=0x00280000
 	VENDORFS_OFF=0x04280000
 	ROOTFS_OFF=`printf "0x%08x" $((${VENDORFS_SIZE} + ${VENDORFS_OFF}))`
+	ROOTFS_NAME=octavo-rootfs-debian-lxqt-emmc-${BOARD_NAME}.ext4
 	TSV_FILE="${SCRIPTPATH}/FlashLayout_emmc_${BOARD_NAME}-${MODE}.tsv"
 else
 	echo "Wrong MMC_DEVICE"
