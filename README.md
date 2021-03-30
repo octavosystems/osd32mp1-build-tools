@@ -1,5 +1,5 @@
 # OSD32MP1 Debian SDK: OSD32MP1-build-tools
-This repository contains the list of repositories used for OSD32MP1 Debian SDK
+This repository contains the build tools used for OSD32MP1 Debian SDK
 
 ## Introduction
 OSD32MP1 Debian SDK can be used to develop Debian Linux images for OSD32MP1 based platforms. The SDK runs on host desktop preferably runnning Ubuntu. Docker is used to containerize the build environment. Souce code from ST (OpenSTLinux) is used, for TF-A, U-Boot, Linux kernel, GCNano and STM32CubeMP1. So, the SDK is compatible with software from ST. Binary images for both SD card or eMMC can be generated. Cube Programmer can be used to flash the eMMC via USB.
@@ -29,12 +29,14 @@ The following packges are recommended:
 
 | Package | Version |
 | ------- | ------- |
-| repo | v2.13 |
-| git | 2.17 |
+| repo | v2.13 or higher|
+| git | 2.17 or higher|
 | Python | 3.x |
 | Docker | 19.x |
 | qemu-user-static | v5.4-stm32mp |
-| STM32MP1 Cube Programmer | 2.5 |
+| STM32MP1 Cube Programmer | 2.5 or higher|
+
+Please see https://wiki.st.com/stm32mpu/wiki/STM32CubeProgrammer for Cube Programmer installation instructions.
 
 ## OSD32MP1 Target binary versions:
 
