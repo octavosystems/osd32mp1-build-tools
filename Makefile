@@ -2,17 +2,19 @@
 # SPDX-License-Identifier:	GPL-2.0+
 
 ROOT_DIR = $(PWD)
-ATF_VERSION=arm-trusted-firmware-2.0
-UBOOT_VERSION = u-boot-2018.11
-KERNEL_VERSION=linux-4.19.94
-GCNANO_VERSION=6.2.4.p4
+ATF_VERSION=arm-trusted-firmware-2.4
+UBOOT_VERSION = u-boot-2020.10
+KERNEL_VERSION=linux-5.10
+GCNANO_VERSION=6.4.3
 
 FSBL_DIR ?= $(realpath bootloader/$(ATF_VERSION))
 SSBL_DIR ?= $(realpath bootloader/$(UBOOT_VERSION))
 KERNEL_DIR ?= $(realpath kernel/$(KERNEL_VERSION))
+FIP_FWCONF_DIR ?= $(realpath bootloader/$(ATF_VERSION)/deploy/fwconfig)
+FIP_TFA_DIR ?= $(realpath bootloader/$(ATF_VERSION)/deploy/bl32)
 MULTISTRAP_DIR ?= $(realpath multistrap)
-ROOTFS_DIR ?= $(MULTISTRAP_DIR)/multistrap-debian-buster
-GCNANO_DIR ?= $(realpath gcnano-$(GCNANO_VERSION)-binaries)
+ROOTFS_DIR ?= $(MULTISTRAP_DIR)/multistrap-debian-bullseye
+GCNANO_DIR ?= $(realpath gcnano-$(GCNANO_VERSION).binaries)
 GCNANO_DRV_DIR ?= $(GCNANO_DIR)/gcnano-driver-$(GCNANO_VERSION)
 GCNANO_USR_DIR ?= $(GCNANO_DIR)/gcnano-userland-multi-$(GCNANO_VERSION)-*
 M4PROJECTS_DIR ?= $(realpath STM32CubeMP1)
@@ -21,8 +23,8 @@ BUILDTOOLS_DIR ?= $(realpath build-tools)
 
 MODE ?= trusted
 #MODE ?= basic
-BOARD_NAME := osd32mp1-red
-KDEFCONFIG ?= osd32_defconfig
+BOARD_NAME := stm32mp157c-osd32mp1-red
+KDEFCONFIG ?= multi_v7_defconfig
 
 ARCH ?= arm
 CROSS_COMPILE ?= arm-linux-gnueabihf-
@@ -63,10 +65,13 @@ patch_kernel:
 			git apply --whitespace=nowarn --directory=kernel/$(KERNEL_VERSION) $$file; \
 		fi \
 	done
-	cp $(BUILDTOOLS_DIR)/patches/$(KERNEL_VERSION)/osd32_defconfig $(KERNEL_DIR)/arch/arm/configs/
+	cp $(BUILDTOOLS_DIR)/patches/$(KERNEL_VERSION)/fragment-* kernel/$(KERNEL_VERSION)/arch/arm/configs
 	touch $(KERNEL_DIR)/.scmversion
 
 setup:
+	PWD=$(FSBL_DIR)/tools/fiptool $(MAKE) -C $(FSBL_DIR)/tools/fiptool
+	cp $(FSBL_DIR)/tools/fiptool/fiptool /bin/
+	cp $(BUILDTOOLS_DIR)/files/fsbl/fiptool-stm32mp /bin/
 	mkdir -p $(DEPLOY_DIR)/bootfs
 	cp $(BUILDTOOLS_DIR)/files/flash-tools/generate_tsv.sh $(DEPLOY_DIR)/
 	cp $(BUILDTOOLS_DIR)/files/flash-tools/create_sdcard_from_flashlayout.sh  $(DEPLOY_DIR)/
@@ -75,21 +80,21 @@ setup:
 # First stage bootloader
 fsbl: setup patch_fsbl
 	cp $(BUILDTOOLS_DIR)/files/fsbl/Makefile.sdk $(FSBL_DIR)
-	
-	STM32MP_SDMMC=1 PWD=$(FSBL_DIR) $(MAKE) $(FLAGS) -C $(FSBL_DIR) -f Makefile.sdk TF_A_CONFIG=$(MODE) TFA_DEVICETREE=$(BOARD_NAME) all
-	cp $(FSBL_DIR)/build/$(MODE)/tf-a-$(BOARD_NAME).stm32 $(DEPLOY_DIR)
-	cp $(FSBL_DIR)/build/$(MODE)/tf-a-$(BOARD_NAME)-$(MODE).stm32 $(DEPLOY_DIR)
+	PWD=$(FSBL_DIR) $(MAKE) $(FLAGS) -C $(FSBL_DIR) -f Makefile.sdk stm32
+	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-sdcard.stm32 $(DEPLOY_DIR)
+	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-emmc.stm32 $(DEPLOY_DIR)
+	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-usb.stm32 $(DEPLOY_DIR)
 
 # Second stage bootloader
-ssbl: setup patch_ssbl
+ssbl: setup fsbl patch_ssbl
 	cp $(BUILDTOOLS_DIR)/files/ssbl/boot.scr.cmd $(SSBL_DIR)
-	$(MAKE) $(FLAGS) -C $(SSBL_DIR) stm32mp15_$(MODE)_defconfig
-	$(MAKE) $(FLAGS) -C $(SSBL_DIR) DEVICE_TREE=$(BOARD_NAME) all
-	$(SSBL_DIR)/tools/mkimage -C none -A arm -T script -d $(SSBL_DIR)/boot.scr.cmd $(DEPLOY_DIR)/bootfs/boot.scr.uimg
-	cp $(SSBL_DIR)/u-boot.stm32 $(DEPLOY_DIR)/u-boot-$(BOARD_NAME)-$(MODE).stm32
+	cp $(BUILDTOOLS_DIR)/files/ssbl/Makefile.sdk $(SSBL_DIR)
+	PWD=$(SSBL_DIR) FIP_DEPLOYDIR_FIP=$(DEPLOY_DIR) FIP_DEPLOYDIR_TFA=$(FIP_TFA_DIR) FIP_DEPLOYDIR_FWCONF=$(FIP_FWCONF_DIR) $(MAKE) $(FLAGS) -C $(SSBL_DIR) -f Makefile.sdk all UBOOT_CONFIG=trusted UBOOT_DEFCONFIG=stm32mp15_trusted_defconfig UBOOT_BINARY=u-boot.dtb FIP_CONFIG="trusted" FIP_BL32_CONF="tfa," DEVICETREE=$(BOARD_NAME)
+	
 
 kernel: setup patch_kernel
-	$(MAKE) $(FLAGS) -C $(KERNEL_DIR) $(KDEFCONFIG)
+	$(MAKE) $(FLAGS) -C $(KERNEL_DIR) $(KDEFCONFIG) fragment*.config
+	yes '' | $(MAKE) -C $(KERNEL_DIR) oldconfig
 	$(MAKE) $(FLAGS) -C $(KERNEL_DIR) $(BOARD_NAME).dtb
 	$(MAKE) $(FLAGS) -C $(KERNEL_DIR)
 	mkimage -A arm -O linux -T kernel -C none -a 0xC2000040 -e 0xC2000040 -n "Linux kernel" -d $(KERNEL_DIR)/arch/arm/boot/zImage $(DEPLOY_DIR)/bootfs/uImage
@@ -100,7 +105,7 @@ bootfs: kernel
 	$(BUILDTOOLS_DIR)/$(BOARD_NAME)-extlinux.sh -d $(DEPLOY_DIR)/bootfs
 	
 	# Copy boot files
-	cp $(BUILDTOOLS_DIR)/files/bootfs/uboot.env $(DEPLOY_DIR)/bootfs/
+	cp $(BUILDTOOLS_DIR)/files/bootfs/boot.scr.uimg $(DEPLOY_DIR)/bootfs/
 	cp $(BUILDTOOLS_DIR)/files/bootfs/splash.bmp $(DEPLOY_DIR)/bootfs/
 	
 	# Format bootfs partition
@@ -119,6 +124,9 @@ gcnano: kernel
 		sh gcnano-userland-multi-*.bin  --auto-accept; \
 		cd $(ROOT_DIR);  \
 	fi
+
+	# Signing out of tree galcore module
+	$(KERNEL_DIR)/scripts/sign-file sha256 $(KERNEL_DIR)/certs/signing_key.pem $(KERNEL_DIR)/certs/signing_key.x509 $(GCNANO_DRV_DIR)/galcore.ko
 
 rootfs: kernel gcnano m4_demo
 	$(MAKE) $(FLAGS) -C $(MULTISTRAP_DIR) all
@@ -215,6 +223,9 @@ kernel_clean:
 
 clean: ssbl_clean fsbl_clean kernel_clean
 	$(MAKE) $(FLAGS) -C $(MULTISTRAP_DIR) clean
+	@rm -rf $(GCNANO_DRV_DIR)
+	@rm -rf $(GCNANO_USR_DIR)
+	@rm -rf $(GCNANO_DRV_DIR)/galcore.ko
 	@rm -rf $(DEPLOY_DIR)
 	@rm -rf $(ROOTFS_DIR)
 
