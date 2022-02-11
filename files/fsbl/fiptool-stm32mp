@@ -1,0 +1,90 @@
+#!/bin/bash -
+function bbfatal() { echo "$*" ; exit 1 ; }
+
+# Set default TF-A FIP config
+FIP_CONFIG="${FIP_CONFIG:- optee trusted}"
+FIP_BL32_CONF="${FIP_BL32_CONF:-optee,tfa,}"
+FIP_DEVICETREE="${FIP_DEVICETREE:-  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2   stm32mp157c-ed1 stm32mp157f-ed1   stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 }"
+
+# Configure default folder path for binaries to package
+FIP_DEPLOYDIR_ROOT="${FIP_DEPLOYDIR_ROOT:-}"
+FIP_DEPLOYDIR_FIP="${FIP_DEPLOYDIR_FIP:-$FIP_DEPLOYDIR_ROOT/fip}"
+FIP_DEPLOYDIR_TFA="${FIP_DEPLOYDIR_TFA:-$FIP_DEPLOYDIR_ROOT/arm-trusted-firmware/bl32}"
+FIP_DEPLOYDIR_FWCONF="${FIP_DEPLOYDIR_FWCONF:-$FIP_DEPLOYDIR_ROOT/arm-trusted-firmware/fwconfig}"
+FIP_DEPLOYDIR_OPTEE="${FIP_DEPLOYDIR_OPTEE:-$FIP_DEPLOYDIR_ROOT/optee}"
+FIP_DEPLOYDIR_UBOOT="${FIP_DEPLOYDIR_UBOOT:-$FIP_DEPLOYDIR_ROOT/u-boot}"
+
+echo ""
+echo "fiptool-stm32mp config:"
+for config in $FIP_CONFIG; do
+    i=$(expr $i + 1)
+    bl32_conf=$(echo $FIP_BL32_CONF | cut -d',' -f$i)
+    echo "  ${config}:" ; \
+    echo "    bl32 config value: ${bl32_conf}"
+done
+echo "  FIP_DEVICETREE: $FIP_DEVICETREE"
+echo ""
+echo "  FIP_DEPLOYDIR_FIP   : $FIP_DEPLOYDIR_FIP"
+echo "  FIP_DEPLOYDIR_TFA   : $FIP_DEPLOYDIR_TFA"
+echo "  FIP_DEPLOYDIR_FWCONF: $FIP_DEPLOYDIR_FWCONF"
+echo "  FIP_DEPLOYDIR_OPTEE : $FIP_DEPLOYDIR_OPTEE"
+echo "  FIP_DEPLOYDIR_UBOOT : $FIP_DEPLOYDIR_UBOOT"
+echo ""
+
+unset i
+for config in $FIP_CONFIG; do
+    i=$(expr $i + 1)
+    bl32_conf=$(echo $FIP_BL32_CONF | cut -d',' -f$i)
+    for dt in $FIP_DEVICETREE; do
+        # Init soc suffix
+        soc_suffix=""
+        if [ -n "stm32mp15" ]; then
+            for soc in stm32mp15; do
+                [ "$(echo ${dt} | grep -c ${soc})" -eq 1 ] && soc_suffix="-${soc}"
+            done
+        fi
+        # Init FIP fw-config settings
+        [ -f "$FIP_DEPLOYDIR_FWCONF/${dt}-fw-config-${config}.dtb" ] || bbfatal "Missing ${dt}-fw-config-${config}.dtb file in folder: \$FIP_DEPLOYDIR_FWCONF or '\$FIP_DEPLOYDIR_ROOT/arm-trusted-firmware/fwconfig'"
+        FIP_FWCONFIG="--fw-config $FIP_DEPLOYDIR_FWCONF/${dt}-fw-config-${config}.dtb"
+        # Init FIP hw-config settings
+        [ -f "$FIP_DEPLOYDIR_UBOOT/u-boot-${dt}-trusted.dtb" ] || bbfatal "Missing u-boot-${dt}-trusted.dtb file in folder: '\$FIP_DEPLOYDIR_UBOOT' or '\$FIP_DEPLOYDIR_ROOT/u-boot'"
+        FIP_HWCONFIG="--hw-config $FIP_DEPLOYDIR_UBOOT/u-boot-${dt}-trusted.dtb"
+        # Init FIP nt-fw config
+        [ -f "$FIP_DEPLOYDIR_UBOOT/u-boot-nodtb${soc_suffix}.bin" ] || bbfatal "Missing u-boot-nodtb${soc_suffix}.bin file in folder: '\$FIP_DEPLOYDIR_UBOOT' or '\$FIP_DEPLOYDIR_ROOT/u-boot'"
+        FIP_NTFW="--nt-fw $FIP_DEPLOYDIR_UBOOT/u-boot-nodtb${soc_suffix}.bin"
+        # Init FIP extra conf settings
+        if [ "${bl32_conf}" = "tfa" ]; then
+            # Check for files
+            [ -f "$FIP_DEPLOYDIR_TFA/tf-a-bl32${soc_suffix}.bin" ] || bbfatal "No tf-a-bl32${soc_suffix}.bin file in folder: '\$FIP_DEPLOYDIR_TFA' or '\$FIP_DEPLOYDIR_ROOT/arm-trusted-firmware/bl32'"
+            [ -f "$FIP_DEPLOYDIR_TFA/${dt}-bl32.dtb" ] || bbfatal "No ${dt}-bl32.dtb file in folder: '\$FIP_DEPLOYDIR_TFA' or '\$FIP_DEPLOYDIR_ROOT/arm-trusted-firmware/bl32'"
+            # Set FIP_EXTRACONF
+            FIP_EXTRACONF="\
+                --tos-fw $FIP_DEPLOYDIR_TFA/tf-a-bl32${soc_suffix}.bin \
+                --tos-fw-config $FIP_DEPLOYDIR_TFA/${dt}-bl32.dtb \
+                "
+        elif [ "${bl32_conf}" = "optee" ]; then
+            # Check for files
+            [ -f "$FIP_DEPLOYDIR_OPTEE/tee-header_v2-${dt}.bin" ] || bbfatal "Missing tee-header_v2-${dt}.bin file in folder: '\$FIP_DEPLOYDIR_OPTEE' or '\$FIP_DEPLOYDIR_ROOT/optee'"
+            [ -f "$FIP_DEPLOYDIR_OPTEE/tee-pager_v2-${dt}.bin" ] || bbfatal "Missing tee-pager_v2-${dt}.bin file in folder: '\$FIP_DEPLOYDIR_OPTEE' or '\$FIP_DEPLOYDIR_ROOT/optee'"
+            [ -f "$FIP_DEPLOYDIR_OPTEE/tee-pageable_v2-${dt}.bin" ] || bbfatal "Missing tee-pageable_v2-${dt}.bin file in folder: '\$FIP_DEPLOYDIR_OPTEE' or '\$FIP_DEPLOYDIR_ROOT/optee'"
+            # Set FIP_EXTRACONF
+            FIP_EXTRACONF="\
+                --tos-fw $FIP_DEPLOYDIR_OPTEE/tee-header_v2-${dt}.bin \
+                --tos-fw-extra1 $FIP_DEPLOYDIR_OPTEE/tee-pager_v2-${dt}.bin \
+                --tos-fw-extra2 $FIP_DEPLOYDIR_OPTEE/tee-pageable_v2-${dt}.bin \
+                "
+        else
+            bbfatal "Wrong configuration '${bl32_conf}' found in FIP_CONFIG for ${config} config."
+        fi
+        # Generate FIP binary
+        echo "[fiptool] Create fip-${dt}-${config}.bin fip binary into 'FIP_DEPLOYDIR_FIP' folder..."
+        [ -d "$FIP_DEPLOYDIR_FIP" ] || mkdir -p "$FIP_DEPLOYDIR_FIP"
+        fiptool create \
+                        $FIP_FWCONFIG \
+                        $FIP_HWCONFIG \
+                        $FIP_NTFW \
+                        $FIP_EXTRACONF \
+                        $FIP_DEPLOYDIR_FIP/fip-${dt}-${config}.bin
+        echo "[fiptool] Done"
+    done
+done
