@@ -6,6 +6,7 @@ ATF_VERSION=arm-trusted-firmware-2.4
 UBOOT_VERSION = u-boot-2020.10
 KERNEL_VERSION=linux-5.10
 GCNANO_VERSION=6.4.3
+GCNANO_SUBVERSION=20200902
 
 FSBL_DIR ?= $(realpath bootloader/$(ATF_VERSION))
 SSBL_DIR ?= $(realpath bootloader/$(UBOOT_VERSION))
@@ -16,15 +17,18 @@ MULTISTRAP_DIR ?= $(realpath multistrap)
 ROOTFS_DIR ?= $(MULTISTRAP_DIR)/multistrap-debian-bullseye
 GCNANO_DIR ?= $(realpath gcnano-$(GCNANO_VERSION).binaries)
 GCNANO_DRV_DIR ?= $(GCNANO_DIR)/gcnano-driver-$(GCNANO_VERSION)
-GCNANO_USR_DIR ?= $(GCNANO_DIR)/gcnano-userland-multi-$(GCNANO_VERSION)-*
+GCNANO_USR_DIR ?= $(GCNANO_DIR)/gcnano-userland-multi-$(GCNANO_VERSION)-$(GCNANO_SUBVERSION)
 M4PROJECTS_DIR ?= $(realpath STM32CubeMP1)
 DEPLOY_DIR ?= $(PWD)/deploy
 BUILDTOOLS_DIR ?= $(realpath build-tools)
 
 MODE ?= trusted
-#MODE ?= basic
 BOARD_NAME := stm32mp157c-osd32mp1-red
 KDEFCONFIG ?= multi_v7_defconfig
+BOOT_EMMC = 1
+BOOT_SD = 1
+BOARD_RED = stm32mp157c-osd32mp1-red
+BOARD_BRK = stm32mp157c-osd32mp1-brk
 
 ARCH ?= arm
 CROSS_COMPILE ?= arm-linux-gnueabihf-
@@ -78,12 +82,18 @@ setup:
 	patch --ignore-whitespace $(DEPLOY_DIR)/create_sdcard_from_flashlayout.sh $(BUILDTOOLS_DIR)/files/flash-tools/sdcard-script.patch
 
 # First stage bootloader
+# Add to if statement for custom board
 fsbl: setup patch_fsbl
 	cp $(BUILDTOOLS_DIR)/files/fsbl/Makefile.sdk $(FSBL_DIR)
 	PWD=$(FSBL_DIR) $(MAKE) $(FLAGS) -C $(FSBL_DIR) -f Makefile.sdk stm32
-	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-sdcard.stm32 $(DEPLOY_DIR)
-	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-emmc.stm32 $(DEPLOY_DIR)
 	cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-usb.stm32 $(DEPLOY_DIR)
+	if [ "$(BOOT_SD)" -eq "1" ]; then \
+		cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-sdcard.stm32 $(DEPLOY_DIR); \
+	fi
+	if [ "$(BOOT_EMMC)" -eq "1" ]; then \
+		cp $(FSBL_DIR)/deploy/tf-a-$(BOARD_NAME)-emmc.stm32 $(DEPLOY_DIR); \
+	fi
+
 
 # Second stage bootloader
 ssbl: setup fsbl patch_ssbl
@@ -142,7 +152,7 @@ rootfs: kernel gcnano m4_demo
 	mkdir -p $(ROOTFS_DIR)/lib/firmware/brcm/
 	cp $(BUILDTOOLS_DIR)/files/firmwares/CYW43430A1.1DX.hcd $(ROOTFS_DIR)/lib/firmware/brcm/BCM43430A1.hcd
 	cp $(BUILDTOOLS_DIR)/files/firmwares/LICENCE.cypress $(ROOTFS_DIR)/lib/firmware/LICENCE.cypress_bcm4343
-	cp $(BUILDTOOLS_DIR)/files/firmwares/brcmfmac43430-sdio.txt $(ROOTFS_DIR)/lib/firmware/brcm/
+	cp $(BUILDTOOLS_DIR)/files/firmwares/brcmfmac43430-sdio.txt $(ROOTFS_DIR)/lib/firmware/brcm/brcmfmac43430-sdio.octavo,stm32mp157c-osd32mp1-red.txt
 	cp $(BUILDTOOLS_DIR)/files/firmwares/brcmfmac43430-sdio.bin $(ROOTFS_DIR)/lib/firmware/brcm/
 	cp $(BUILDTOOLS_DIR)/files/firmwares/brcmfmac43430-sdio.1DX.clm_blob $(ROOTFS_DIR)/lib/firmware/brcm/brcmfmac43430-sdio.clm_blob
 	
@@ -157,25 +167,36 @@ rootfs: kernel gcnano m4_demo
 	sed -i -e "s:@userfs_mount_point@:${STM32MP_USERFS_MOUNTPOINT_IMAGE}:" $(ROOTFS_DIR)/sbin/st-m4firmware-load-default.sh
 	cp $(M4PROJECTS_DIR)/st-m4firmware-load.service $(ROOTFS_DIR)/lib/systemd/system/
 
- 	# Install demo files
-	cp $(BUILDTOOLS_DIR)/files/demo_camera.sh $(ROOTFS_DIR)/home/debian
-	cp $(BUILDTOOLS_DIR)/files/demo_video.sh $(ROOTFS_DIR)/home/debian
-	cp $(BUILDTOOLS_DIR)/files/OSD32MP1_RED_intro_360p.mp4 $(ROOTFS_DIR)/home/debian
+ 	# Install demo files for OSD32MP1-RED
+ifeq ($(BOARD_NAME), $(BOARD_RED))
+	cp $(BUILDTOOLS_DIR)/files/demo_red/demo_camera.sh $(ROOTFS_DIR)/home/debian; \
+	cp $(BUILDTOOLS_DIR)/files/demo_red/demo_video.sh $(ROOTFS_DIR)/home/debian; \
+	cp $(BUILDTOOLS_DIR)/files/demo_red/OSD32MP1_RED_intro_360p.mp4 $(ROOTFS_DIR)/home/debian;
+endif
+
+	# Instll demo files for OSD32MP1-BRK
+ifeq ($(BOARD_NAME), $(BOARD_BRK))
+	mkdir -p $(ROOTFS_DIR)/usr/local/demo/; \
+	cp -R $(BUILDTOOLS_DIR)/files/demo_brk/LEDWebDemo/ $(ROOTFS_DIR)/usr/local/demo/;
+endif
+
+	# Install M4 demo firmware
 	cp -R $(M4PROJECTS_DIR)/deploy/STM32MP157C-DK2 $(ROOTFS_DIR)/usr/local/bin/
 
-	# Install fstab for emmc
-	cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_emmc $(ROOTFS_DIR)/etc/fstab
+	if [ $(BOOT_EMMC) -eq 1 ]; then \
+		cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_emmc_$(BOARD_NAME) $(ROOTFS_DIR)/etc/fstab; \
+		tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .; \
+		virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).ext4; \
+	fi
 
-	# Create eMMC image
-	tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .
-	virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-emmc-$(BOARD_NAME).ext4
+	if [ $(BOOT_SD) -eq 1 ]; then \
+		cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_sdcard_$(BOARD_NAME) $(ROOTFS_DIR)/etc/fstab; \
+		tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .; \
+		virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).ext4; \
+	fi
 
-	# Install fstab for sd card
-	cp $(BUILDTOOLS_DIR)/files/rootfs/fstab_sdcard $(ROOTFS_DIR)/etc/fstab
 
-	# Create SD card image
-	tar -cf $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar -C $(ROOTFS_DIR) .
-	virt-make-fs --type=ext4 --size=+$(ROOTFS_EXTRA_SPACE)M $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).tar $(DEPLOY_DIR)/octavo-rootfs-debian-lxqt-sdcard-$(BOARD_NAME).ext4
+
 
 
 vendorfs: setup gcnano
@@ -195,11 +216,14 @@ m4_demo: setup
 		cd $(M4PROJECTS_DIR) ; ./build_m4projects.sh; \
 	fi
 
-image:
-	rm -rf $(DEPLOY_DIR)/FlashLayout_sdcard_$(BOARD_NAME)-$(MODE).raw
-	$(DEPLOY_DIR)/generate_tsv.sh -b $(BOARD_NAME) -m $(MODE) -d 0
-	$(DEPLOY_DIR)/generate_tsv.sh -b $(BOARD_NAME) -m $(MODE) -d 1
-	$(DEPLOY_DIR)/create_sdcard_from_flashlayout.sh $(DEPLOY_DIR)/FlashLayout_sdcard_$(BOARD_NAME)-$(MODE).tsv $(SDCARD_SIZE_GB)
+image: fsbl ssbl bootfs rootfs vendorfs
+	if [ $(BOOT_SD) -eq 1 ]; then \
+		$(DEPLOY_DIR)/generate_tsv.sh -b $(BOARD_NAME) -m $(MODE) -d 0; \
+		$(DEPLOY_DIR)/create_sdcard_from_flashlayout.sh $(DEPLOY_DIR)/FlashLayout_sdcard_$(BOARD_NAME)-$(MODE).tsv $(SDCARD_SIZE_GB); \
+	fi
+	if [ $(BOOT_EMMC) -eq 1 ]; then \
+		$(DEPLOY_DIR)/generate_tsv.sh -b $(BOARD_NAME) -m $(MODE) -d 1; \
+	fi
 
 all: ssbl fsbl bootfs rootfs vendorfs image
 
@@ -224,8 +248,8 @@ kernel_clean:
 clean: ssbl_clean fsbl_clean kernel_clean
 	$(MAKE) $(FLAGS) -C $(MULTISTRAP_DIR) clean
 	@rm -rf $(GCNANO_DRV_DIR)
-	@rm -rf $(GCNANO_USR_DIR)
 	@rm -rf $(GCNANO_DRV_DIR)/galcore.ko
 	@rm -rf $(DEPLOY_DIR)
 	@rm -rf $(ROOTFS_DIR)
+	@rm -rf $(GCNANO_USR_DIR)
 

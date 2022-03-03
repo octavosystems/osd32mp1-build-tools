@@ -28,7 +28,7 @@ TF_A_BINARY_optee ?= tf-a
 TF_A_MAKE_TARGET_optee ?= dtbs
 
 # Init default config settings
-TF_A_DEVICETREE_trusted ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red 
+TF_A_DEVICETREE_trusted ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red stm32mp157c-osd32mp1-brk 
 TF_A_EXTRA_OPTFLAGS_trusted ?= AARCH32_SP=sp_min 
 TF_A_BINARY_trusted ?= tf-a
 TF_A_MAKE_TARGET_trusted ?= bl32 dtbs
@@ -52,19 +52,19 @@ TF_A_BINARY_nor ?= tf-a
 TF_A_MAKE_TARGET_nor ?= all
 
 # Init default config settings
-TF_A_DEVICETREE_sdcard ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red
+TF_A_DEVICETREE_sdcard ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red stm32mp157c-osd32mp1-brk 
 TF_A_EXTRA_OPTFLAGS_sdcard ?= STM32MP_SDMMC=1
 TF_A_BINARY_sdcard ?= tf-a
 TF_A_MAKE_TARGET_sdcard ?= all
 
 # Init default config settings
-TF_A_DEVICETREE_uart ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red 
+TF_A_DEVICETREE_uart ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red stm32mp157c-osd32mp1-brk 
 TF_A_EXTRA_OPTFLAGS_uart ?= STM32MP_UART_PROGRAMMER=1
 TF_A_BINARY_uart ?= tf-a
 TF_A_MAKE_TARGET_uart ?= all
 
 # Init default config settings
-TF_A_DEVICETREE_usb ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red 
+TF_A_DEVICETREE_usb ?=  stm32mp157a-dk1 stm32mp157d-dk1 stm32mp157c-dk2 stm32mp157f-dk2 stm32mp157c-ed1 stm32mp157f-ed1 stm32mp157a-ev1 stm32mp157c-ev1 stm32mp157d-ev1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red stm32mp157c-osd32mp1-brk 
 TF_A_EXTRA_OPTFLAGS_usb ?= STM32MP_USB_PROGRAMMER=1
 TF_A_BINARY_usb ?= tf-a
 TF_A_MAKE_TARGET_usb ?= all
@@ -83,7 +83,7 @@ NM =
 EXTRA_OEMAKE ?= CROSS_COMPILE=arm-linux-gnueabihf- DEBUG=1 LOG_LEVEL=40   PLAT=stm32mp1 ARCH=aarch32 ARM_ARCH_MAJOR=7
 
 # Configure overall devicetree list for FIP
-TF_A_DEVICETREE_ALL = stm32mp157a-dk1 stm32mp157a-ev1 stm32mp157c-dk2 stm32mp157c-ed1 stm32mp157c-ev1 stm32mp157d-dk1 stm32mp157d-ev1 stm32mp157f-dk2 stm32mp157f-ed1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red
+TF_A_DEVICETREE_ALL = stm32mp157a-dk1 stm32mp157a-ev1 stm32mp157c-dk2 stm32mp157c-ed1 stm32mp157c-ev1 stm32mp157d-dk1 stm32mp157d-ev1 stm32mp157f-dk2 stm32mp157f-ed1 stm32mp157f-ev1 stm32mp157c-osd32mp1-red stm32mp157c-osd32mp1-brk
 
 # Display TF-A config details
 define tf-configs
