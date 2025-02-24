@@ -1,0 +1,24 @@
+From 4c94f74ba8f93668de941d04afaf235d9b50584c Mon Sep 17 00:00:00 2001
+From: Neeraj Dantu <dantuguf14105@gmail.com>
+Date: Mon, 24 Feb 2025 15:01:06 -0500
+Subject: [PATCH 2/2] Fix EEPROM address-width for OSD32MP1-RED V1_2
+
+---
+ arch/arm/boot/dts/stm32mp157c-osd32mp1-red-v1_2.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-osd32mp1-red-v1_2.dts b/arch/arm/boot/dts/stm32mp157c-osd32mp1-red-v1_2.dts
+index f111e7fcd485..60cb24ef43d9 100644
+--- a/arch/arm/boot/dts/stm32mp157c-osd32mp1-red-v1_2.dts
++++ b/arch/arm/boot/dts/stm32mp157c-osd32mp1-red-v1_2.dts
+@@ -1129,6 +1129,7 @@ eeprom@50 {
+ 		compatible = "atmel,24c02";
+ 		reg = <0x50>;
+ 		pagesize = <16>;
++		address-width = <16>;
+ 	};
+ };
+ 
+-- 
+2.34.1
+
