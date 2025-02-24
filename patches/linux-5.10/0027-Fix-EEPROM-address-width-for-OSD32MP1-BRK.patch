@@ -1,0 +1,24 @@
+From e632235dc867cfdcc67b505e7053a50a7869e74e Mon Sep 17 00:00:00 2001
+From: Neeraj Dantu <dantuguf14105@gmail.com>
+Date: Mon, 24 Feb 2025 14:55:57 -0500
+Subject: [PATCH] Fix EEPROM address-width for OSD32MP1-BRK
+
+---
+ arch/arm/boot/dts/stm32mp157c-osd32mp1-brk.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-osd32mp1-brk.dts b/arch/arm/boot/dts/stm32mp157c-osd32mp1-brk.dts
+index 1dc0ae1b5fb8..6648631fc45b 100644
+--- a/arch/arm/boot/dts/stm32mp157c-osd32mp1-brk.dts
++++ b/arch/arm/boot/dts/stm32mp157c-osd32mp1-brk.dts
+@@ -838,6 +838,7 @@ eeprom@50 {
+ 		compatible = "atmel,24c02";
+ 		reg = <0x50>;
+ 		pagesize = <16>;
++		address-width = <16>;
+ 		};
+ };
+ 
+-- 
+2.34.1
+
